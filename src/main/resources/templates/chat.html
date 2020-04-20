@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0px;
+            font-family: "Mitra Mono", 微软雅黑;
+        }
+
+        body {
+            padding-top: 20px;
+        }
+
+        .container {
+            margin: auto;
+            width: 960px;
+            /*border: 1px solid #000;*/
+            height: 702px;
+            vertical-align: top;
+            box-shadow: 0 6px 26px rgba(0,0,0,.25);
+        }
+
+        .chat-box {
+            width: 100%;
+            margin: auto;
+            height: 450px;
+            padding: 10px;
+            box-sizing: border-box;
+            border-bottom: 1px solid #eaeaea;
+            overflow-y:scroll;
+        }
+
+        .text-box {
+            width: 100%;
+            margin: auto;
+            height: 200px;
+        }
+
+        h2 {
+            /*text-align: center;*/
+            height: 50px;
+            line-height: 50px;
+        }
+
+        .text {
+            width: 100%;
+            height: 165px;
+            border: none;
+            font-size: 18px;
+            outline: none;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: none;
+        }
+
+        .send {
+            float: right;
+            width: 150px;
+            text-align: center;
+            height: 30px;
+            line-height: 30px;
+            background: cadetblue;
+            border: none;
+            color: white;
+            outline: none;
+        }
+
+        .left {
+            width: 200px;
+            float: left;
+            height: 703px;
+            border-right: 1px solid #eaeaea;
+        }
+
+        .right {
+            width: 759px;
+            float: right;
+        }
+
+        .chat-line {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px 0;
+        }
+
+        .chat-line p {
+            padding: 5px 10px;
+            background: #ccc;
+            border-radius: 10px;
+            max-width: 500px;
+            width: auto;
+            word-break: break-word;
+            display: inline-block;
+        }
+
+        .posi-left p, .posi-left span {
+            float: left;
+        }
+
+        .posi-right p, .posi-right span {
+            float: right;
+        }
+        .member-list p{
+            padding: 10px;
+            text-align: center;
+        }
+        .chat-name{
+            border-bottom: 1px solid #eaeaea;
+        }
+        .chat-name p{
+            box-sizing: border-box;
+            padding: 10px 15px;
+            font-size: 20px;
+        }
+        .member-name p{
+            padding: 2px;
+            text-align: center;
+        }
+        .member-name p:hover{
+            background: gainsboro;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="left">
+        <div class="member-list"><p>在线成员</p></div>
+    </div>
+    <div class="right">
+        <div class="chat-name"><p>ChatDemo</p></div>
+        <div class="chat-box"></div>
+        <div class="text-box">
+            <textarea name="" id="" cols="30" rows="10" class="text"></textarea>
+            <button class="send">Send(Ctrl+Enter)</button>
+        </div>
+    </div>
+</div>
+<script type="text/javascript">
+    (function WebSocketDemo() {
+        if ("WebSocket" in window) {
+            // 打开一个 web socket
+            var name = prompt("请输入你的昵称", "工具人");
+            var ws = new WebSocket("ws://localhost:8000/websocket/"+name);
+            var method = {
+                send: function () {
+                    var mess = document.querySelector(".text").value;
+                    document.querySelector(".text").value = "";
+                    ws.send(mess);
+                    mess=(mess.split('\n').map(function (item) {
+                        return `<span>${item}</span><br>`;
+                    })).join("");
+                    var chatBox = document.querySelector(".chat-box");
+                    chatBox.innerHTML = chatBox.innerHTML + `
+                            <div class="chat-line posi-right">
+                                <span>${name}</span><br>
+                                <p sytle="text-align: left;">${mess}  </p>
+                                <div style="clear: both"></div>
+                           </div> `
+                        },
+                updateOnlineList:function(data){
+                    var left=document.querySelector(".left");
+                    left.innerHTML=`<div class="member-list"><p>在线成员(${data.length})</p></div>`
+                    data.forEach(v=> {
+                        left.innerHTML = left.innerHTML + `<div class="member-name"><p>${v}</p></div>`;
+                    });
+                }
+            }
+            ws.onopen = function () {
+                // Web Socket 已连接上，使用 send() 方法发送数据
+                document.querySelector(".send").onclick = method.send;
+                window.addEventListener("keydown", function (ev) {
+                    if (ev.code == "Enter" && ev.ctrlKey) {
+                        method.send();
+                    }
+                })
+            };
+
+            ws.onmessage = function (evt) {
+                data=JSON.parse(evt.data)
+                if(data.mess!=undefined) {
+                    var chatBox = document.querySelector(".chat-box");
+                    mess = data.mess;
+                    console.log(data)
+                    mess = (mess.split('\n').map(function (item) {
+                        return `<span>${item}</span><br>`;
+                    })).join("");
+                    chatBox.innerHTML = chatBox.innerHTML + `
+                            <div class="chat-line posi-left">
+                                <span>${data.name}</span><br>
+                                <p sytle="text-align: left;">${mess}</p>
+                                <div style="clear: both"></div>
+                           </div>
+                         `;
+                }else{
+                    method.updateOnlineList(data);
+                }
+            };
+            ws.onclose = function () {
+                // 关闭 websocket
+            };
+        }
+        else {
+            // 浏览器不支持 WebSocket
+            alert("您的浏览器不支持 WebSocket!");
+        }
+    })();
+
+</script>
+</body>
+</html>
